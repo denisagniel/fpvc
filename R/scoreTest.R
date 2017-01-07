@@ -48,7 +48,7 @@ scoreTest <- function(y, z, x = NULL, model) {
   ## U is the score function, s.t. A.xx^-1 x U is the influence fn
   S <- lapply(1:p, function(j) {
     if (model == 'po') {
-      fit.x <- Hmisc::lrm(z[,j] ~ x1 - 1)
+      fit.x <- rms::lrm(z[,j] ~ x1 - 1)
       dgb <- dg(x, fit.x, model = 'po') ## n x q
       A.xx <- fit.x$info.matrix
     } else if (model == 'binomial') {
