@@ -1,0 +1,94 @@
+---
+title: "Example simulation"
+author: "Denis Agniel"
+date: December 11, 2016
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Example simulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Set-up
+Setting initial conditionas and generating simulated data:
+
+```{r}
+library(fpvc)
+TT <- 2*pi
+maf <- 0.1
+n <- 100
+gamma <- 0.75
+alpha <- 0.25
+beta <- 1
+nt <- 10
+set.seed(0)
+
+dat <- generateData(n, nt = nt, maf = maf, beta = beta, TT = TT, alpha = alpha, gamma = gamma)
+```
+
+## Summarizing longitudinal data
+
+Creating polynomial basis:
+```{r}
+this.ds <- dplyr::mutate(dat,
+                  y1_scaled = c(scale(y1)),
+                  y2_scaled = c(scale(y2)))
+this.ds <- dplyr::mutate(this.ds,
+                         tt2 = scale(tt)^2,
+                         tt3 = scale(tt)^3,
+                         tt4 = scale(tt)^4,
+                         tt5 = scale(tt)^5)
+```
+
+Estimating FPCA values:
+
+```{r}
+fpc_fit <- fpca(this.ds, ycols = c('y1_scaled', 'y2_scaled'), tcol = 'tt', idcol = 'id', options = NULL)
+fpc_scores <- fpc_fit$scores
+```
+
+Getting scores for B-spline and polynomial basis functions using
+3 basis functions:
+```{r}
+poly_scores <- polynomialScores(this.ds, df = 3)$ds
+bs_scores <- bSplineScores(this.ds, df = 3)$ds
+```
+
+Doing the same for re-fitted scores using the eigenfunctions as a basis in a mixed effects model:
+
+```{r}
+fpme1 <- fpme(fpc_fit$fpca_fits[[1]], ids = fpc_fit$ids, df = 3)
+fpme2 <- fpme(fpc_fit$fpca_fits[[2]], ids = fpc_fit$ids, df = 3)
+fpme_scores <- merge(fpme1, fpme2, by = 'id')
+```
+
+### Testing using 3 basis functions for each method
+
+```{r}
+g_ds <- dplyr::select(this.ds, id, g) 
+g_ds <- unique(g_ds)
+fpc_ds <- merge(fpc_scores, g_ds, by = 'id')
+fpc_test <- fpvc(fpc_ds, xicols = c('xi1.1', 'xi1.2', 'xi1.3',
+                                   'xi2.1', 'xi2.2', 'xi2.3'),
+                 zcols = 'g', xcols = NULL, model = 'binomial')
+
+refit_ds <- merge(fpme_scores, g_ds, by = 'id')
+refit_test <- fpvc(refit_ds, xicols = c('xime.1.x', 'xime.2.x', 'xime.3.x',
+                                        'xime.1.y', 'xime.2.y', 'xime.3.y'),
+                                        zcols = 'g', xcols = NULL, 
+                                        model = 'binomial')
+
+bs_ds <- merge(bs_scores, g_ds, by = 'id')
+bs_test <- fpvc(bs_ds, xicols = c('b1.1', 'b1.2', 'b1.3',
+                                   'b2.1', 'b2.2', 'b2.3'),
+                 zcols = 'g', xcols = NULL, model = 'binomial')
+
+poly_ds <- merge(poly_scores, g_ds, by = 'id')
+poly_test <- fpvc(poly_ds, xicols = c('b1.1', 'b1.2', 'b1.3',
+                                   'b2.1', 'b2.2', 'b2.3'),
+                 zcols = 'g', xcols = NULL, model = 'binomial')
+c(fpc_test = fpc_test, 
+  refit_test = refit_test,
+  bs_test = bs_test,
+  poly_test = poly_test)
+```
