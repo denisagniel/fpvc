@@ -18,12 +18,12 @@
 #'
 #'
 fpvc <- function(data, xicols, zcols, xcols = NULL, model) {
-  xi <- dplyr::select_(data, xicols)
+  xi <- dplyr::select_(data, .dots = xicols)
   xi <- as.matrix(xi)
-  z <- dplyr::select_(data, zcols)
+  z <- dplyr::select_(data, .dots = zcols)
   z <- as.matrix(z)
   if (!is.null(xcols)) {
-    x <- dplyr::select_(data, xcols)
+    x <- dplyr::select_(data, .dots = xcols)
     x <- as.matrix(x)
   } else x <- NULL
   scoreTest(y = xi, z = z, x = x, model = model)
